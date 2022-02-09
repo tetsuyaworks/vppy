@@ -123,7 +123,7 @@ def predict(sparams, vparams, hparams, scenario):
     simulation_days = sparams["simulation_days"]
     sim_time = int(sparams["simulation_days"] * 1440 / time_space)
 
-    meal_vector = np.zeros(sim_time)
+    meal_vector = np.zeros(sim_time+1)
     for v in scenario:
         if v[0] > sim_time * time_space:
             continue
