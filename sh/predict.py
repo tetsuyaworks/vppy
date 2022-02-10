@@ -120,7 +120,6 @@ def sh_glucoregulatory(x,
 
 def predict(sparams, vparams, hparams, scenario):
     time_space = 5  # time_spaceを5にしないとなぜか機能しないため、5に固定する
-    simulation_days = sparams["simulation_days"]
     sim_time = int(sparams["simulation_days"] * 1440 / time_space)
 
     meal_vector = np.zeros(sim_time+1)
@@ -252,6 +251,12 @@ def predict(sparams, vparams, hparams, scenario):
     return bg_output, ins_input
 
 
+def evaluate(sparams, vparams, hparams, scenario, bg_true):
+    bg_output = predict(sparams, vparams, hparams, scenario)[0]
+
+    return 0, 0
+
+
 if __name__ == "__main__":
     setting_params = OrderedDict()
     setting_params["simulation_days"] = 4
@@ -302,6 +307,14 @@ if __name__ == "__main__":
     meal_scenario = np.array(meal_scenario).T
 
     bg_output, ins_input = predict(setting_params, visible_params, hidden_params, meal_scenario)
+
+    import random
+    bg_true = [random.randint(30, 400) for x in range(len(bg_output))]
+
+    mae, rsme = evaluate(setting_params, visible_params, hidden_params, meal_scenario, bg_true)
+    print(mae)
+
+    exit()
 
     xaxis_time = np.arange(len(bg_output)) * 5 / 60 / 24
 
