@@ -1,10 +1,185 @@
 from collections import OrderedDict
+import datetime
+import random
+import multiprocessing
 import numpy as np
+import pandas as pd
 from scipy.optimize import fsolve
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 
 class SingleHormoneBloodGlucoseModel:
+
+    param_set = OrderedDict()
+    # Fc01: Non-insulin mediated glucose uptake above 4.5 mmol/L ([mmol/kg]/min)
+    param_set["Fc01"] = OrderedDict()
+    param_set["Fc01"]["default"] = 0.0097
+    param_set["Fc01"]["min"] = 0.0
+    param_set["Fc01"]["max"] = 0.1
+    param_set["Fc01"]["type"] = float
+
+    # Vdg: Volume of distribution of glucose (L/kg)
+    param_set["VdG"] = OrderedDict()
+    param_set["VdG"]["default"] = 0.16
+    param_set["VdG"]["min"] = 0.0
+    param_set["VdG"]["max"] = 1.0
+    param_set["VdG"]["type"] = float
+
+    # k12: Rate constant for glucose transfer from Q2 to Q1 (min^-1)
+    param_set["k12"] = OrderedDict()
+    param_set["k12"]["default"] = 0.066
+    param_set["k12"]["min"] = 0.0
+    param_set["k12"]["max"] = 1.0
+    param_set["k12"]["type"] = float
+
+    # Ag: Carb bioavailability (unitless)
+    param_set["Ag"] = OrderedDict()
+    param_set["Ag"]["default"] = 0.8
+    param_set["Ag"]["min"] = 0.0
+    param_set["Ag"]["max"] = 2.0
+    param_set["Ag"]["type"] = float
+
+    # tmaxG: time-to-maximum of carb absorption (min)
+    param_set["tmaxG"] = OrderedDict()
+    param_set["tmaxG"]["default"] = 40
+    param_set["tmaxG"]["min"] = 0
+    param_set["tmaxG"]["max"] = 180
+    param_set["tmaxG"]["type"] = int
+
+    # EGP0: Endogenous glucose production maximum ([mmol/kg]/min)
+    param_set["EGP0"] = OrderedDict()
+    param_set["EGP0"]["default"] = 0.0161
+    param_set["EGP0"]["min"] = 0.0
+    param_set["EGP0"]["max"] = 0.1
+    param_set["EGP0"]["type"] = float
+
+    # tmaxI: time-to-maximum of rapid-acting insulin absorption
+    param_set["tmaxI"] = OrderedDict()
+    param_set["tmaxI"]["default"] = 55
+    param_set["tmaxI"]["min"] = 0
+    param_set["tmaxI"]["max"] = 180
+    param_set["tmaxI"]["type"] = int
+
+    # Ke: Elimination rate of insulin (min^-1)
+    param_set["Ke"] = OrderedDict()
+    param_set["Ke"]["default"] = 0.138
+    param_set["Ke"]["min"] = 0.0
+    param_set["Ke"]["max"] = 1.0
+    param_set["Ke"]["type"] = float
+
+    # VdI: Volume of distribution of insulin (L/kg)
+    param_set["VdI"] = OrderedDict()
+    param_set["VdI"]["default"] = 0.12
+    param_set["VdI"]["min"] = 0.0
+    param_set["VdI"]["max"] = 1.0
+    param_set["VdI"]["type"] = float
+
+    # ka1: Rate constant for elimination of insulin effect from x1 (min^-1)
+    param_set["ka1"] = OrderedDict()
+    param_set["ka1"]["default"] = 0.006
+    param_set["ka1"]["min"] = 0.0
+    param_set["ka1"]["max"] = 0.1
+    param_set["ka1"]["type"] = float
+
+    # ka2: Rate constant for elimination of insulin effect from x2 (min^-1)
+    param_set["ka2"] = OrderedDict()
+    param_set["ka2"]["default"] = 0.06
+    param_set["ka2"]["min"] = 0.0
+    param_set["ka2"]["max"] = 0.1
+    param_set["ka2"]["type"] = float
+
+    # ka3: Rate constant for elimination of insulin effect from x3 (min^-1)
+    param_set["ka3"] = OrderedDict()
+    param_set["ka3"]["default"] = 0.03
+    param_set["ka3"]["min"] = 0.0
+    param_set["ka3"]["max"] = 0.1
+    param_set["ka3"]["type"] = float
+
+    # Sf1: Sensitivity factor for glucose distribution (x1) ([mU.L.min]^-2)
+    param_set["Sf1"] = OrderedDict()
+    param_set["Sf1"]["default"] = 0.00542
+    param_set["Sf1"]["min"] = 0.0
+    param_set["Sf1"]["max"] = 0.1
+    param_set["Sf1"]["type"] = float
+
+    # Sf2: Sensitivity factor for insulin mediated glucose utilization (x2) ([mU.L.min]^-2)
+    param_set["Sf2"] = OrderedDict()
+    param_set["Sf2"]["default"] = 0.00082
+    param_set["Sf2"]["min"] = 0.0
+    param_set["Sf2"]["max"] = 0.1
+    param_set["Sf2"]["type"] = float
+
+    # Sf3: Sensitivity factor for suppression of endogenous glucose production (x3) ([mU.L.min]^-1)
+    param_set["Sf3"] = OrderedDict()
+    param_set["Sf3"]["default"] = 0.052
+    param_set["Sf3"]["min"] = 0.0
+    param_set["Sf3"]["max"] = 0.1
+    param_set["Sf3"]["type"] = float
+
+    # Ratio between the TDIR and TDIR_basal.
+    # A ratio of 2 indicates basal is 50% of TDIR (1/0.5). Ratio of 1.78 indicates
+    # that basal insulin comprises 56.18% of total daily insulin (1/0.5618)
+    param_set["TDIR_basal_rate"] = OrderedDict()
+    param_set["TDIR_basal_rate"]["default"] = 1.78
+    param_set["TDIR_basal_rate"]["min"] = 0.0
+    param_set["TDIR_basal_rate"]["max"] = 10.0
+    param_set["TDIR_basal_rate"]["type"] = float
+
+    # percentage of pre-meal bolus  [unitless: 0-1]
+    param_set["Ip"] = OrderedDict()
+    param_set["Ip"]["default"] = 1.0
+    param_set["Ip"]["min"] = 0.0
+    param_set["Ip"]["max"] = 1.0
+    param_set["Ip"]["type"] = float
+
+    # time-to-maximum rescure carb absorption [min]
+    param_set["tmax_resc"] = OrderedDict()
+    param_set["tmax_resc"]["default"] = 20
+    param_set["tmax_resc"]["min"] = 0
+    param_set["tmax_resc"]["max"] = 180
+    param_set["tmax_resc"]["type"] = int
+
+    # Rescue carbs given for glucose < 70 mg/dL
+    param_set["Thr_resc"] = OrderedDict()
+    param_set["Thr_resc"]["default"] = 70
+    param_set["Thr_resc"]["min"] = 0
+    param_set["Thr_resc"]["max"] = 70
+    param_set["Thr_resc"]["type"] = int
+
+    # 20 g of carbs given when glucose <  70 mg/dL
+    param_set["Carbs_resc"] = OrderedDict()
+    param_set["Carbs_resc"]["default"] = 20
+    param_set["Carbs_resc"]["min"] = 0
+    param_set["Carbs_resc"]["max"] = 70
+    param_set["Carbs_resc"]["type"] = int
+
+    # Window for lower insulin dosed is 40 minutes after hypo
+    param_set["Win_resc"] = OrderedDict()
+    param_set["Win_resc"]["default"] = 40
+    param_set["Win_resc"]["min"] = 0
+    param_set["Win_resc"]["max"] = 120
+    param_set["Win_resc"]["type"] = int
+
+    # Insulin is reduced to 25%
+    param_set["IIR_red_resc"] = OrderedDict()
+    param_set["IIR_red_resc"]["default"] = 0.25
+    param_set["IIR_red_resc"]["min"] = 0.0
+    param_set["IIR_red_resc"]["max"] = 1.0
+    param_set["IIR_red_resc"]["type"] = float
+
+    # for 40 minutes after a hypo
+    param_set["timer_resc"] = OrderedDict()
+    param_set["timer_resc"]["default"] = 40
+    param_set["timer_resc"]["min"] = 0
+    param_set["timer_resc"]["max"] = 120
+    param_set["timer_resc"]["type"] = int
+
+    # Rescue carb is given 20 minutes after hypo occurs
+    param_set["delay_rescue_val"] = OrderedDict()
+    param_set["delay_rescue_val"]["default"] = 20
+    param_set["delay_rescue_val"]["min"] = 0
+    param_set["delay_rescue_val"]["max"] = 120
+    param_set["delay_rescue_val"]["type"] = int
 
     def __init__(self, params=None):
         if params:
@@ -44,7 +219,7 @@ class SingleHormoneBloodGlucoseModel:
             self.params["timer_resc"] = 40  # for 40 minutes after a hypo
             self.params["delay_rescue_val"] = 20  # Rescue carb is given 20 minutes after hypo occurs
 
-    def predict(self, simulation_days, weight, starting_glucose, meal_scenario):
+    def predict(self, simulation_days, weight, starting_glucose, meal_scenario, _params=None):
 
         def solve_ss(x, q, params):
             return np.array([
@@ -160,29 +335,64 @@ class SingleHormoneBloodGlucoseModel:
         sim_time = int(simulation_days * 1440 / time_space)
 
         meal_vector = np.zeros(sim_time + 1)
-        for v in scenario:
+        for v in meal_scenario:
             if v[0] > sim_time * time_space:
                 continue
             meal_vector[round(v[0] / time_space)] = v[1]
         meal_time = []
         meal_amount = []
 
-        fc01 = self.params["Fc01"]
-        vdg = self.params["VdG"]
-        k12 = self.params["k12"]
-        ag = self.params["Ag"]
-        tmaxg = self.params["tmaxG"]
-        egp0 = self.params["EGP0"]
-        tmaxi = self.params["tmaxI"]
-        ke = self.params["Ke"]
-        vdi = self.params["VdI"]
-        ka1 = self.params["ka1"]
-        ka2 = self.params["ka2"]
-        ka3 = self.params["ka3"]
-        sf1 = self.params["Sf1"]
-        sf2 = self.params["Sf2"]
-        sf3 = self.params["Sf3"]
-        tdir_basal_rate = self.params["TDIR_basal_rate"]
+        if _params:
+            fc01 = _params["Fc01"]
+            vdg = _params["VdG"]
+            k12 = _params["k12"]
+            ag = _params["Ag"]
+            tmaxg = _params["tmaxG"]
+            egp0 = _params["EGP0"]
+            tmaxi = _params["tmaxI"]
+            ke = _params["Ke"]
+            vdi = _params["VdI"]
+            ka1 = _params["ka1"]
+            ka2 = _params["ka2"]
+            ka3 = _params["ka3"]
+            sf1 = _params["Sf1"]
+            sf2 = _params["Sf2"]
+            sf3 = _params["Sf3"]
+            tdir_basal_rate = _params["TDIR_basal_rate"]
+            ip = _params["Ip"]
+            tmax_resc = _params["tmax_resc"]
+            thr_resc = _params["Thr_resc"]
+            carbs_resc = _params["Carbs_resc"]
+            win_resc = _params["Win_resc"] / time_space
+            iir_red_resc = _params["IIR_red_resc"]
+            timer_resc = _params["timer_resc"] / time_space
+            delay_rescue_val = _params["delay_rescue_val"]
+        else:
+            fc01 = self.params["Fc01"]
+            vdg = self.params["VdG"]
+            k12 = self.params["k12"]
+            ag = self.params["Ag"]
+            tmaxg = self.params["tmaxG"]
+            egp0 = self.params["EGP0"]
+            tmaxi = self.params["tmaxI"]
+            ke = self.params["Ke"]
+            vdi = self.params["VdI"]
+            ka1 = self.params["ka1"]
+            ka2 = self.params["ka2"]
+            ka3 = self.params["ka3"]
+            sf1 = self.params["Sf1"]
+            sf2 = self.params["Sf2"]
+            sf3 = self.params["Sf3"]
+            tdir_basal_rate = self.params["TDIR_basal_rate"]
+            ip = self.params["Ip"]
+            tmax_resc = self.params["tmax_resc"]
+            thr_resc = self.params["Thr_resc"]
+            carbs_resc = self.params["Carbs_resc"]
+            win_resc = self.params["Win_resc"] / time_space
+            iir_red_resc = self.params["IIR_red_resc"]
+            timer_resc = self.params["timer_resc"] / time_space
+            delay_rescue_val = self.params["delay_rescue_val"]
+
         glucose_set_point = 115
         tdir = calc_tdir(
             weight,
@@ -190,7 +400,6 @@ class SingleHormoneBloodGlucoseModel:
             tdir_basal_rate, glucose_set_point
         )
         icr = (1700 / tdir / 3)
-        ip = self.params["Ip"]
         bolus = ip * (meal_vector / icr) * 1000 / (weight * time_space)
         cgm_start = starting_glucose
         xm_plant = set_initial_conditions(glucose_set_point, fc01, vdg, k12, ag, tmaxg, egp0, tmaxi, ke, vdi, ka1, ka2,
@@ -202,13 +411,6 @@ class SingleHormoneBloodGlucoseModel:
 
         pgua_1_act = 0
 
-        tmax_resc = self.params["tmax_resc"]
-        thr_resc = self.params["Thr_resc"]
-        carbs_resc = self.params["Carbs_resc"]
-        win_resc = self.params["Win_resc"] / time_space
-        iir_red_resc = self.params["IIR_red_resc"]
-        timer_resc = self.params["timer_resc"] / time_space
-        delay_rescue_val = self.params["delay_rescue_val"]
         cntr_resc = win_resc
         resc_trig_cntr = 0
         time_resc = []
@@ -286,9 +488,9 @@ class SingleHormoneBloodGlucoseModel:
 
         return bg_output, ins_input
 
-    def evaluate(self, simulation_days, weight, starting_glucose, meal_scenario, bg_true, time_space=5):
+    def evaluate(self, simulation_days, weight, starting_glucose, meal_scenario, bg_true, time_space=5, _params=None):
         pred_time_space = 5
-        bg_pred = self.predict(simulation_days, weight, starting_glucose, meal_scenario)[0]
+        bg_pred = self.predict(simulation_days, weight, starting_glucose, meal_scenario, _params)[0]
         label = []
         pred = []
         if time_space > pred_time_space:
@@ -303,8 +505,80 @@ class SingleHormoneBloodGlucoseModel:
         rmse = np.sqrt(mean_squared_error(label, pred))
         return mae, rmse
 
-    def fit(self, simulation_days, weight, starting_glucose, meal_scenario, bg_true):
-        pass  # パラメータ最適化を遺伝的アルゴリズムか確率的勾配降下法のどちらかで実装する予定
+    def fit(self, simulation_days_list, weight_list, starting_glucose_list, meal_scenario_list, bg_true_list, time_space=5, method="GA"):
+        if method == "GA":
+            from deap import base, tools, creator, algorithms
+
+            cpu = 2
+
+            def evaluate(individual):
+                hidden_params = OrderedDict()
+                for i, (k, v) in enumerate(self.param_set.items()):
+                    hidden_params[k] = individual[i] * (v["max"] - v["min"]) + v["min"]
+                mae_list = []
+                for i in range(len(meal_scenario_list)):
+                    mae_list.append(self.evaluate(
+                        simulation_days_list[i],
+                        weight_list[i],
+                        starting_glucose_list[i],
+                        meal_scenario_list[i],
+                        bg_true_list[i],
+                        time_space
+                    )[0])
+                return np.mean(mae_list),
+
+            def mutParams(individual, indpb):
+                for i in range(len(individual)):
+                    if random.random() < indpb:
+                        individual[i] = random.random()
+                return individual,
+
+            def initPopulation(pcls, ind_init, n):
+                init_list = []
+                for i, (k, v) in enumerate(self.param_set.items()):
+                    init_list.append((v["default"] - v["min"]) / (v["max"] - v["min"]))
+                return pcls(ind_init(init_list) for x in range(n))
+
+            creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
+            creator.create("Individual", list, fitness=creator.FitnessMin)
+
+            toolbox = base.Toolbox()
+            #pool = multiprocessing.Pool(cpu)
+            #toolbox.register("map", pool.map)
+            toolbox.register("attribute", random.random)
+            toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attribute, 24)
+            # toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+            toolbox.register("population_guess", initPopulation, list, creator.Individual)
+            toolbox.register("select", tools.selTournament, tournsize=5)
+            # toolbox.register("mate", tools.cxBlend, alpha=0.2)
+            toolbox.register("mate", tools.cxTwoPoint)
+            toolbox.register("mutate", mutParams, indpb=0.2)
+            toolbox.register("evaluate", evaluate)
+
+            random.seed(64)
+
+            NGEN = 2
+            POP = 10
+            CXPB = 0.9
+            MUTPB = 0.1
+
+            # pop = toolbox.population(n=POP)
+            pop = toolbox.population_guess(n=POP)
+            # hof = tools.HallOfFame(1)
+
+            for individual in pop:
+                individual.fitness.values = toolbox.evaluate(individual)
+            hof = tools.ParetoFront()
+
+            algorithms.eaSimple(pop, toolbox, cxpb=CXPB, mutpb=MUTPB, ngen=NGEN, halloffame=hof)
+            # for gen in range(NGEN):
+            #     offspring = algorithms.varAnd(pop, toolbox, cxpb=CXPB, mutpb=MUTPB)
+            #     fits = toolbox.map(toolbox.evaluate, offspring)
+            #     for fit, ind in zip(fits, offspring):
+            #         ind.fitness.values = fit
+            #     pop = toolbox.select(offspring, k=len(pop))
+
+            print(pop)
 
 
 def bg_plot(bg_output, ins_input):
@@ -329,24 +603,86 @@ def bg_plot(bg_output, ins_input):
     plt.show()
 
 
+def compliment_bg(df, min, silent=False):
+    gap_max_rate = 1.8  # 15分ごとのデータの場合、15*1.8=27分の空きをギャップと認識
+
+    arr1 = df.to_numpy()
+    arr2 = []
+    for i in range(len(arr1)-1):
+        arr2.append(arr1[i])
+        current_dt = arr1[i][0]
+        next_dt = arr1[i+1][0]
+        gap = (next_dt - current_dt).total_seconds() / 60
+        if gap > min * gap_max_rate:
+            if not silent:
+                print("gap is found [{}] to [{}]. value is complimented. ({} to {}).".format(arr1[i][0], arr1[i+1][0], arr1[i][1], arr1[i+1][1]))
+            comp_num = int(gap / min)
+            sum_diff = arr1[i+1][1] - arr1[i][1]
+            unit_diff = sum_diff / comp_num
+            for j in range(comp_num-1):
+                arr2.append(np.array([current_dt + datetime.timedelta(minutes=min*(j+1)), arr1[i][1]+unit_diff*(j+1)]))
+    arr2.append(arr1[-1])
+
+    return pd.DataFrame(arr2, columns=("datetime", "blood_glucose_value"))
+
+
+def split_bg(bg_df, ml_df, days=2):
+
+    start_dt = bg_df["datetime"][0]
+    time_course = []
+    for i, dt in enumerate(bg_df["datetime"]):
+        time_course.append((dt - start_dt).total_seconds() / (60 * 60 * 24))
+    bg_df.insert(1, "time_course", time_course)
+    time_course = []
+    for i, dt in enumerate(ml_df["datetime"]):
+        time_course.append((dt - start_dt).total_seconds() / (60 * 60 * 24))
+    ml_df.insert(1, "time_course", time_course)
+
+    bg_df_list = []
+    ml_df_list = []
+    for i in range(0, 10, days):
+        bg_df1 = bg_df[bg_df["time_course"] >= i]
+        bg_df1 = bg_df1[bg_df1["time_course"] < i+days]
+        bg_df_list.append(bg_df1)
+        ml_df1 = ml_df[ml_df["time_course"] >= i]
+        ml_df1 = ml_df1[ml_df1["time_course"] < i+days]
+        ml_df_list.append(ml_df1)
+
+    return bg_df_list, ml_df_list
+
+
 if __name__ == "__main__":
     model = SingleHormoneBloodGlucoseModel()
 
-    scenario = [
-        # Time of meal event (min)
-        [40, 250, 605, 1515, 1985, 2020, 2165, 2830, 3225, 3515, 4355, 4570, 4925],
-        # gramAmount carbs in meal event (gram)
-        [35, 79, 117, 40, 15, 100, 30, 100, 100, 100, 35, 79, 117]]
-    scenario = np.array(scenario).T
+    import bgdata
+    json_path = "../test/BG_dataset_20220204.json"
+    dataset = bgdata.BGDataset.from_json(json_path)
+    days_list = [10 for x in range(6)]
+    weight_list = [53.2, 54.7, 70.5, 64.3, 68.0, 53.2]
+    start_bg_list = []
+    meal_list = []  # 分, 量
+    bg_list = []  # 血糖値
+    for paitient in dataset.paitients:
+        bg_data = paitient.get_bg()
+        ml_data = paitient.get_meal()
+        bg_data = compliment_bg(bg_data, 15, silent=True)
+        bg_data_2list, ml_data_2list = split_bg(bg_data, ml_data, 10)
+        bg_data2 = bg_data_2list[0].iloc[:, 2].to_numpy()
+        ml_data2 = ml_data_2list[0].iloc[:, [1, 2]].to_numpy()
+        starting_glucose = bg_data2[0]
+        meal_scenario = ml_data2 * np.array([1440, 1])
+        start_bg_list.append(starting_glucose)
+        meal_list.append(meal_scenario)
+        bg_list.append(bg_data2)
+    # evaluate
+    #for i in range(6):
+    #    mae, rmse = model.evaluate(10, weight_list[i], start_bg_list[i], meal_list[i], bg_list[i], 15)
+    # fit
+    model.fit(days_list, weight_list, start_bg_list, meal_list, bg_list, 15, "GA")
 
-    #bg_output, ins_input = model.predict(1, 45.0, 160, scenario)
-    #bg_plot(bg_output, ins_input)
 
-    import random
-    bg_true = [random.randint(30, 400) for x in range(96)]
+    #model.fit(10, 54, 160, scenario, bg_true)
 
-    #m, r = model.evaluate(1, 45.0, 160, scenario, bg_true, 15)
-    #print(m, r)
 
 
 
