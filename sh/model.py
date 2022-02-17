@@ -338,7 +338,7 @@ class SingleHormoneBloodGlucoseModel:
         for v in meal_scenario:
             if v[0] > sim_time * time_space:
                 continue
-            meal_vector[round(v[0] / time_space)] = v[1]
+            meal_vector[int(round(v[0] / time_space))] = v[1]
         meal_time = []
         meal_amount = []
 
@@ -505,11 +505,18 @@ class SingleHormoneBloodGlucoseModel:
         rmse = np.sqrt(mean_squared_error(label, pred))
         return mae, rmse
 
-    def fit(self, simulation_days_list, weight_list, starting_glucose_list, meal_scenario_list, bg_true_list, time_space=5, method="GA"):
+    def fit(
+            self,
+            simulation_days_list,
+            weight_list,
+            starting_glucose_list,
+            meal_scenario_list,
+            bg_true_list,
+            time_space=5,
+            method="GA"):
+
         if method == "GA":
             from deap import base, tools, creator, algorithms
-
-            cpu = 2
 
             def evaluate(individual):
                 hidden_params = OrderedDict()
@@ -543,42 +550,38 @@ class SingleHormoneBloodGlucoseModel:
             creator.create("Individual", list, fitness=creator.FitnessMin)
 
             toolbox = base.Toolbox()
-            #pool = multiprocessing.Pool(cpu)
-            #toolbox.register("map", pool.map)
             toolbox.register("attribute", random.random)
             toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attribute, 24)
             # toolbox.register("population", tools.initRepeat, list, toolbox.individual)
             toolbox.register("population_guess", initPopulation, list, creator.Individual)
             toolbox.register("select", tools.selTournament, tournsize=5)
-            # toolbox.register("mate", tools.cxBlend, alpha=0.2)
             toolbox.register("mate", tools.cxTwoPoint)
             toolbox.register("mutate", mutParams, indpb=0.2)
             toolbox.register("evaluate", evaluate)
 
-            random.seed(64)
+            #random.seed(64)
 
-            NGEN = 2
-            POP = 10
+            NGEN = 20
+            POP = 100
             CXPB = 0.9
             MUTPB = 0.1
 
-            # pop = toolbox.population(n=POP)
             pop = toolbox.population_guess(n=POP)
-            # hof = tools.HallOfFame(1)
-
             for individual in pop:
                 individual.fitness.values = toolbox.evaluate(individual)
             hof = tools.ParetoFront()
 
             algorithms.eaSimple(pop, toolbox, cxpb=CXPB, mutpb=MUTPB, ngen=NGEN, halloffame=hof)
-            # for gen in range(NGEN):
-            #     offspring = algorithms.varAnd(pop, toolbox, cxpb=CXPB, mutpb=MUTPB)
-            #     fits = toolbox.map(toolbox.evaluate, offspring)
-            #     for fit, ind in zip(fits, offspring):
-            #         ind.fitness.values = fit
-            #     pop = toolbox.select(offspring, k=len(pop))
+            best_ind = tools.selBest(pop, 1)[0]
+            best_value = best_ind.fittness.values
 
-            print(pop)
+            best_params = OrderedDict()
+            for i, (k, v) in enumerate(self.param_set.items()):
+                best_params[k] = best_ind[i] * (v["max"] - v["min"]) + v["min"]
+                self.params[k] = best_params[k]
+
+            print(best_params)
+            print(best_value)
 
 
 def bg_plot(bg_output, ins_input):
@@ -603,54 +606,6 @@ def bg_plot(bg_output, ins_input):
     plt.show()
 
 
-def compliment_bg(df, min, silent=False):
-    gap_max_rate = 1.8  # 15分ごとのデータの場合、15*1.8=27分の空きをギャップと認識
-
-    arr1 = df.to_numpy()
-    arr2 = []
-    for i in range(len(arr1)-1):
-        arr2.append(arr1[i])
-        current_dt = arr1[i][0]
-        next_dt = arr1[i+1][0]
-        gap = (next_dt - current_dt).total_seconds() / 60
-        if gap > min * gap_max_rate:
-            if not silent:
-                print("gap is found [{}] to [{}]. value is complimented. ({} to {}).".format(arr1[i][0], arr1[i+1][0], arr1[i][1], arr1[i+1][1]))
-            comp_num = int(gap / min)
-            sum_diff = arr1[i+1][1] - arr1[i][1]
-            unit_diff = sum_diff / comp_num
-            for j in range(comp_num-1):
-                arr2.append(np.array([current_dt + datetime.timedelta(minutes=min*(j+1)), arr1[i][1]+unit_diff*(j+1)]))
-    arr2.append(arr1[-1])
-
-    return pd.DataFrame(arr2, columns=("datetime", "blood_glucose_value"))
-
-
-def split_bg(bg_df, ml_df, days=2):
-
-    start_dt = bg_df["datetime"][0]
-    time_course = []
-    for i, dt in enumerate(bg_df["datetime"]):
-        time_course.append((dt - start_dt).total_seconds() / (60 * 60 * 24))
-    bg_df.insert(1, "time_course", time_course)
-    time_course = []
-    for i, dt in enumerate(ml_df["datetime"]):
-        time_course.append((dt - start_dt).total_seconds() / (60 * 60 * 24))
-    ml_df.insert(1, "time_course", time_course)
-
-    bg_df_list = []
-    ml_df_list = []
-    for i in range(0, 10, days):
-        bg_df1 = bg_df[bg_df["time_course"] >= i]
-        bg_df1 = bg_df1[bg_df1["time_course"] < i+days]
-        bg_df_list.append(bg_df1)
-        ml_df1 = ml_df[ml_df["time_course"] >= i]
-        ml_df1 = ml_df1[ml_df1["time_course"] < i+days]
-        ml_df_list.append(ml_df1)
-
-    return bg_df_list, ml_df_list
-
-
 if __name__ == "__main__":
     model = SingleHormoneBloodGlucoseModel()
 
@@ -665,10 +620,11 @@ if __name__ == "__main__":
     for paitient in dataset.paitients:
         bg_data = paitient.get_bg()
         ml_data = paitient.get_meal()
-        bg_data = compliment_bg(bg_data, 15, silent=True)
-        bg_data_2list, ml_data_2list = split_bg(bg_data, ml_data, 10)
-        bg_data2 = bg_data_2list[0].iloc[:, 2].to_numpy()
-        ml_data2 = ml_data_2list[0].iloc[:, [1, 2]].to_numpy()
+        bg_data = bgdata.compliment_bg(bg_data, 15, silent=True)
+        bg_data, ml_data = bgdata.add_time_course(bg_data, ml_data)
+        bg_data_2list, ml_data_2list = bgdata.split_days(bg_data, ml_data, 10)
+        bg_data2 = bg_data_2list[0].loc[:, "blood_glucose_value"].to_numpy()
+        ml_data2 = ml_data_2list[0].loc[:, ["time_course", "carbohydrate"]].to_numpy()
         starting_glucose = bg_data2[0]
         meal_scenario = ml_data2 * np.array([1440, 1])
         start_bg_list.append(starting_glucose)
@@ -680,8 +636,8 @@ if __name__ == "__main__":
     # fit
     model.fit(days_list, weight_list, start_bg_list, meal_list, bg_list, 15, "GA")
 
+    print(model.params)
 
-    #model.fit(10, 54, 160, scenario, bg_true)
 
 
 
