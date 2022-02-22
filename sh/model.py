@@ -532,7 +532,8 @@ class SingleHormoneBloodGlucoseModel:
                             starting_glucose_list[i],
                             meal_scenario_list[i],
                             bg_true_list[i],
-                            time_space)[0])
+                            time_space,
+                            hidden_params)[0])
                 return np.mean(mae_list),
 
             def mutParams(individual, indpb):
@@ -623,7 +624,8 @@ class SingleHormoneBloodGlucoseModel:
                             starting_glucose_list[i],
                             meal_scenario_list[i],
                             bg_true_list[i],
-                            time_space)[0])
+                            time_space,
+                            hidden_params)[0])
                 return np.mean(mae_list),
 
             default_params = OrderedDict()
