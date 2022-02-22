@@ -1,3 +1,4 @@
+import warnings
 from collections import OrderedDict
 import datetime
 import random
@@ -14,105 +15,105 @@ class SingleHormoneBloodGlucoseModel:
     # Fc01: Non-insulin mediated glucose uptake above 4.5 mmol/L ([mmol/kg]/min)
     param_set["Fc01"] = OrderedDict()
     param_set["Fc01"]["default"] = 0.0097
-    param_set["Fc01"]["min"] = 0.0
-    param_set["Fc01"]["max"] = 0.1
+    param_set["Fc01"]["min"] = 0.0001
+    param_set["Fc01"]["max"] = 0.02
     param_set["Fc01"]["type"] = float
 
     # Vdg: Volume of distribution of glucose (L/kg)
     param_set["VdG"] = OrderedDict()
     param_set["VdG"]["default"] = 0.16
-    param_set["VdG"]["min"] = 0.0
-    param_set["VdG"]["max"] = 1.0
+    param_set["VdG"]["min"] = 0.01
+    param_set["VdG"]["max"] = 0.3
     param_set["VdG"]["type"] = float
 
     # k12: Rate constant for glucose transfer from Q2 to Q1 (min^-1)
     param_set["k12"] = OrderedDict()
     param_set["k12"]["default"] = 0.066
-    param_set["k12"]["min"] = 0.0
-    param_set["k12"]["max"] = 1.0
+    param_set["k12"]["min"] = 0.001
+    param_set["k12"]["max"] = 0.1
     param_set["k12"]["type"] = float
 
     # Ag: Carb bioavailability (unitless)
     param_set["Ag"] = OrderedDict()
     param_set["Ag"]["default"] = 0.8
-    param_set["Ag"]["min"] = 0.0
+    param_set["Ag"]["min"] = 0.1
     param_set["Ag"]["max"] = 2.0
     param_set["Ag"]["type"] = float
 
     # tmaxG: time-to-maximum of carb absorption (min)
     param_set["tmaxG"] = OrderedDict()
     param_set["tmaxG"]["default"] = 40
-    param_set["tmaxG"]["min"] = 0
-    param_set["tmaxG"]["max"] = 180
+    param_set["tmaxG"]["min"] = 1
+    param_set["tmaxG"]["max"] = 80
     param_set["tmaxG"]["type"] = int
 
     # EGP0: Endogenous glucose production maximum ([mmol/kg]/min)
     param_set["EGP0"] = OrderedDict()
     param_set["EGP0"]["default"] = 0.0161
-    param_set["EGP0"]["min"] = 0.0
-    param_set["EGP0"]["max"] = 0.1
+    param_set["EGP0"]["min"] = 0.0001
+    param_set["EGP0"]["max"] = 0.03
     param_set["EGP0"]["type"] = float
 
     # tmaxI: time-to-maximum of rapid-acting insulin absorption
     param_set["tmaxI"] = OrderedDict()
     param_set["tmaxI"]["default"] = 55
-    param_set["tmaxI"]["min"] = 0
-    param_set["tmaxI"]["max"] = 180
+    param_set["tmaxI"]["min"] = 1
+    param_set["tmaxI"]["max"] = 100
     param_set["tmaxI"]["type"] = int
 
     # Ke: Elimination rate of insulin (min^-1)
     param_set["Ke"] = OrderedDict()
     param_set["Ke"]["default"] = 0.138
-    param_set["Ke"]["min"] = 0.0
-    param_set["Ke"]["max"] = 1.0
+    param_set["Ke"]["min"] = 0.001
+    param_set["Ke"]["max"] = 0.3
     param_set["Ke"]["type"] = float
 
     # VdI: Volume of distribution of insulin (L/kg)
     param_set["VdI"] = OrderedDict()
     param_set["VdI"]["default"] = 0.12
-    param_set["VdI"]["min"] = 0.0
-    param_set["VdI"]["max"] = 1.0
+    param_set["VdI"]["min"] = 0.01
+    param_set["VdI"]["max"] = 0.3
     param_set["VdI"]["type"] = float
 
     # ka1: Rate constant for elimination of insulin effect from x1 (min^-1)
     param_set["ka1"] = OrderedDict()
     param_set["ka1"]["default"] = 0.006
-    param_set["ka1"]["min"] = 0.0
-    param_set["ka1"]["max"] = 0.1
+    param_set["ka1"]["min"] = 0.001
+    param_set["ka1"]["max"] = 0.01
     param_set["ka1"]["type"] = float
 
     # ka2: Rate constant for elimination of insulin effect from x2 (min^-1)
     param_set["ka2"] = OrderedDict()
     param_set["ka2"]["default"] = 0.06
-    param_set["ka2"]["min"] = 0.0
+    param_set["ka2"]["min"] = 0.01
     param_set["ka2"]["max"] = 0.1
     param_set["ka2"]["type"] = float
 
     # ka3: Rate constant for elimination of insulin effect from x3 (min^-1)
     param_set["ka3"] = OrderedDict()
     param_set["ka3"]["default"] = 0.03
-    param_set["ka3"]["min"] = 0.0
+    param_set["ka3"]["min"] = 0.01
     param_set["ka3"]["max"] = 0.1
     param_set["ka3"]["type"] = float
 
     # Sf1: Sensitivity factor for glucose distribution (x1) ([mU.L.min]^-2)
     param_set["Sf1"] = OrderedDict()
     param_set["Sf1"]["default"] = 0.00542
-    param_set["Sf1"]["min"] = 0.0
-    param_set["Sf1"]["max"] = 0.1
+    param_set["Sf1"]["min"] = 0.00001
+    param_set["Sf1"]["max"] = 0.01
     param_set["Sf1"]["type"] = float
 
     # Sf2: Sensitivity factor for insulin mediated glucose utilization (x2) ([mU.L.min]^-2)
     param_set["Sf2"] = OrderedDict()
     param_set["Sf2"]["default"] = 0.00082
-    param_set["Sf2"]["min"] = 0.0
-    param_set["Sf2"]["max"] = 0.1
+    param_set["Sf2"]["min"] = 0.00001
+    param_set["Sf2"]["max"] = 0.001
     param_set["Sf2"]["type"] = float
 
     # Sf3: Sensitivity factor for suppression of endogenous glucose production (x3) ([mU.L.min]^-1)
     param_set["Sf3"] = OrderedDict()
     param_set["Sf3"]["default"] = 0.052
-    param_set["Sf3"]["min"] = 0.0
+    param_set["Sf3"]["min"] = 0.001
     param_set["Sf3"]["max"] = 0.1
     param_set["Sf3"]["type"] = float
 
@@ -121,64 +122,64 @@ class SingleHormoneBloodGlucoseModel:
     # that basal insulin comprises 56.18% of total daily insulin (1/0.5618)
     param_set["TDIR_basal_rate"] = OrderedDict()
     param_set["TDIR_basal_rate"]["default"] = 1.78
-    param_set["TDIR_basal_rate"]["min"] = 0.0
-    param_set["TDIR_basal_rate"]["max"] = 10.0
+    param_set["TDIR_basal_rate"]["min"] = 0.01
+    param_set["TDIR_basal_rate"]["max"] = 4.0
     param_set["TDIR_basal_rate"]["type"] = float
 
     # percentage of pre-meal bolus  [unitless: 0-1]
     param_set["Ip"] = OrderedDict()
     param_set["Ip"]["default"] = 1.0
-    param_set["Ip"]["min"] = 0.0
+    param_set["Ip"]["min"] = 0.001
     param_set["Ip"]["max"] = 1.0
     param_set["Ip"]["type"] = float
 
     # time-to-maximum rescure carb absorption [min]
     param_set["tmax_resc"] = OrderedDict()
     param_set["tmax_resc"]["default"] = 20
-    param_set["tmax_resc"]["min"] = 0
-    param_set["tmax_resc"]["max"] = 180
+    param_set["tmax_resc"]["min"] = 1
+    param_set["tmax_resc"]["max"] = 40
     param_set["tmax_resc"]["type"] = int
 
     # Rescue carbs given for glucose < 70 mg/dL
     param_set["Thr_resc"] = OrderedDict()
     param_set["Thr_resc"]["default"] = 70
-    param_set["Thr_resc"]["min"] = 0
+    param_set["Thr_resc"]["min"] = 1
     param_set["Thr_resc"]["max"] = 70
     param_set["Thr_resc"]["type"] = int
 
     # 20 g of carbs given when glucose <  70 mg/dL
     param_set["Carbs_resc"] = OrderedDict()
     param_set["Carbs_resc"]["default"] = 20
-    param_set["Carbs_resc"]["min"] = 0
+    param_set["Carbs_resc"]["min"] = 1
     param_set["Carbs_resc"]["max"] = 70
     param_set["Carbs_resc"]["type"] = int
 
     # Window for lower insulin dosed is 40 minutes after hypo
     param_set["Win_resc"] = OrderedDict()
     param_set["Win_resc"]["default"] = 40
-    param_set["Win_resc"]["min"] = 0
-    param_set["Win_resc"]["max"] = 120
+    param_set["Win_resc"]["min"] = 1
+    param_set["Win_resc"]["max"] = 80
     param_set["Win_resc"]["type"] = int
 
     # Insulin is reduced to 25%
     param_set["IIR_red_resc"] = OrderedDict()
     param_set["IIR_red_resc"]["default"] = 0.25
-    param_set["IIR_red_resc"]["min"] = 0.0
-    param_set["IIR_red_resc"]["max"] = 1.0
+    param_set["IIR_red_resc"]["min"] = 0.01
+    param_set["IIR_red_resc"]["max"] = 0.5
     param_set["IIR_red_resc"]["type"] = float
 
     # for 40 minutes after a hypo
     param_set["timer_resc"] = OrderedDict()
     param_set["timer_resc"]["default"] = 40
-    param_set["timer_resc"]["min"] = 0
-    param_set["timer_resc"]["max"] = 120
+    param_set["timer_resc"]["min"] = 1
+    param_set["timer_resc"]["max"] = 80
     param_set["timer_resc"]["type"] = int
 
     # Rescue carb is given 20 minutes after hypo occurs
     param_set["delay_rescue_val"] = OrderedDict()
     param_set["delay_rescue_val"]["default"] = 20
-    param_set["delay_rescue_val"]["min"] = 0
-    param_set["delay_rescue_val"]["max"] = 120
+    param_set["delay_rescue_val"]["min"] = 1
+    param_set["delay_rescue_val"]["max"] = 40
     param_set["delay_rescue_val"]["type"] = int
 
     def __init__(self, params=None):
@@ -524,16 +525,19 @@ class SingleHormoneBloodGlucoseModel:
                 for i, (k, v) in enumerate(self.param_set.items()):
                     hidden_params[k] = individual[i] * (v["max"] - v["min"]) + v["min"]
                 mae_list = []
-                for i in range(len(meal_scenario_list)):
-                    mae_list.append(
-                        self.evaluate(
-                            simulation_days_list[i],
-                            weight_list[i],
-                            starting_glucose_list[i],
-                            meal_scenario_list[i],
-                            bg_true_list[i],
-                            time_space,
-                            hidden_params)[0])
+                try:
+                    for i in range(len(meal_scenario_list)):
+                        mae_list.append(
+                            self.evaluate(
+                                simulation_days_list[i],
+                                weight_list[i],
+                                starting_glucose_list[i],
+                                meal_scenario_list[i],
+                                bg_true_list[i],
+                                time_space,
+                                hidden_params)[0])
+                except ValueError:
+                    return 1.0e+300
                 return np.mean(mae_list),
 
             def mutParams(individual, indpb):
@@ -573,7 +577,8 @@ class SingleHormoneBloodGlucoseModel:
                 individual.fitness.values = toolbox.evaluate(individual)
             hof = tools.ParetoFront()
 
-            algorithms.eaSimple(pop, toolbox, cxpb=CXPB, mutpb=MUTPB, ngen=NGEN, halloffame=hof)
+            print("GA: Generation={}, Population={}".format(NGEN, POP))
+            algorithms.eaSimple(pop, toolbox, cxpb=CXPB, mutpb=MUTPB, ngen=NGEN, halloffame=hof, verbose=0)
             best_ind = tools.selBest(pop, 1)[0]
             best_value = best_ind.fitness.values
 
@@ -616,24 +621,31 @@ class SingleHormoneBloodGlucoseModel:
                 hidden_params["delay_rescue_val"] = trial.suggest_float("delay_rescue_val", self.param_set["delay_rescue_val"]["min"], self.param_set["delay_rescue_val"]["max"])
 
                 mae_list = []
-                for i in range(len(meal_scenario_list)):
-                    mae_list.append(
-                        self.evaluate(
-                            simulation_days_list[i],
-                            weight_list[i],
-                            starting_glucose_list[i],
-                            meal_scenario_list[i],
-                            bg_true_list[i],
-                            time_space,
-                            hidden_params)[0])
-                return np.mean(mae_list),
+                try:
+                    for i in range(len(meal_scenario_list)):
+                        mae_list.append(
+                            self.evaluate(
+                                simulation_days_list[i],
+                                weight_list[i],
+                                starting_glucose_list[i],
+                                meal_scenario_list[i],
+                                bg_true_list[i],
+                                time_space,
+                                hidden_params)[0])
+                except ValueError:
+                    return 1.0e+300
+                return np.mean(mae_list)
 
             default_params = OrderedDict()
             for key, value in self.param_set.items():
                 default_params[key] = value["default"]
-            study = optuna.create_study(direction="minimize")
-            study.enqueue_trial(dict(default_params))
-            study.optimize(objective, n_trials=n)
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                study = optuna.create_study(direction="minimize")
+                study.enqueue_trial(dict(default_params))
+                optuna.logging.disable_default_handler()
+                study.optimize(objective, n_trials=n)
 
             self.params = OrderedDict(study.best_params)
 
@@ -691,7 +703,7 @@ if __name__ == "__main__":
     #for i in range(6):
     #    mae, rmse = model.evaluate(10, weight_list[i], start_bg_list[i], meal_list[i], bg_list[i], 15)
     # fit
-    model.fit(days_list, weight_list, start_bg_list, meal_list, bg_list, 15, "GA", 20)
+    model.fit(days_list, weight_list, start_bg_list, meal_list, bg_list, 15, "GA", 1000)
 
     print(model.params)
 
