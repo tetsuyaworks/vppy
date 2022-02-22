@@ -513,7 +513,8 @@ class SingleHormoneBloodGlucoseModel:
             meal_scenario_list,
             bg_true_list,
             time_space=5,
-            method="GA"):
+            method="GA",
+            n=300):
 
         if method == "GA":
             from deap import base, tools, creator, algorithms
@@ -524,14 +525,14 @@ class SingleHormoneBloodGlucoseModel:
                     hidden_params[k] = individual[i] * (v["max"] - v["min"]) + v["min"]
                 mae_list = []
                 for i in range(len(meal_scenario_list)):
-                    mae_list.append(self.evaluate(
-                        simulation_days_list[i],
-                        weight_list[i],
-                        starting_glucose_list[i],
-                        meal_scenario_list[i],
-                        bg_true_list[i],
-                        time_space
-                    )[0])
+                    mae_list.append(
+                        self.evaluate(
+                            simulation_days_list[i],
+                            weight_list[i],
+                            starting_glucose_list[i],
+                            meal_scenario_list[i],
+                            bg_true_list[i],
+                            time_space)[0])
                 return np.mean(mae_list),
 
             def mutParams(individual, indpb):
@@ -561,8 +562,8 @@ class SingleHormoneBloodGlucoseModel:
 
             #random.seed(64)
 
-            NGEN = 20
-            POP = 100
+            NGEN = int(n / 150 + 1)
+            POP = int(NGEN * 7.5)
             CXPB = 0.9
             MUTPB = 0.1
 
@@ -573,15 +574,69 @@ class SingleHormoneBloodGlucoseModel:
 
             algorithms.eaSimple(pop, toolbox, cxpb=CXPB, mutpb=MUTPB, ngen=NGEN, halloffame=hof)
             best_ind = tools.selBest(pop, 1)[0]
-            best_value = best_ind.fittness.values
+            best_value = best_ind.fitness.values
 
             best_params = OrderedDict()
             for i, (k, v) in enumerate(self.param_set.items()):
                 best_params[k] = best_ind[i] * (v["max"] - v["min"]) + v["min"]
                 self.params[k] = best_params[k]
 
-            print(best_params)
-            print(best_value)
+            print("best params:", best_params)
+            print("best value:", best_value)
+
+        elif method == "BO":
+            import optuna
+
+            def objective(trial):
+                hidden_params = OrderedDict()
+                hidden_params["Fc01"] = trial.suggest_float("Fc01", self.param_set["Fc01"]["min"], self.param_set["Fc01"]["max"])
+                hidden_params["VdG"] = trial.suggest_float("VdG", self.param_set["VdG"]["min"], self.param_set["VdG"]["max"])
+                hidden_params["k12"] = trial.suggest_float("k12", self.param_set["k12"]["min"], self.param_set["k12"]["max"])
+                hidden_params["Ag"] = trial.suggest_float("Ag", self.param_set["Ag"]["min"], self.param_set["Ag"]["max"])
+                hidden_params["tmaxG"] = trial.suggest_float("tmaxG", self.param_set["tmaxG"]["min"], self.param_set["tmaxG"]["max"])
+                hidden_params["EGP0"] = trial.suggest_float("EGP0", self.param_set["EGP0"]["min"], self.param_set["EGP0"]["max"])
+                hidden_params["tmaxI"] = trial.suggest_float("tmaxI", self.param_set["tmaxI"]["min"], self.param_set["tmaxI"]["max"])
+                hidden_params["Ke"] = trial.suggest_float("Ke", self.param_set["Ke"]["min"], self.param_set["Ke"]["max"])
+                hidden_params["VdI"] = trial.suggest_float("VdI", self.param_set["VdI"]["min"], self.param_set["VdI"]["max"])
+                hidden_params["ka1"] = trial.suggest_float("ka1", self.param_set["ka1"]["min"], self.param_set["ka1"]["max"])
+                hidden_params["ka2"] = trial.suggest_float("ka2", self.param_set["ka2"]["min"], self.param_set["ka2"]["max"])
+                hidden_params["ka3"] = trial.suggest_float("ka3", self.param_set["ka3"]["min"], self.param_set["ka3"]["max"])
+                hidden_params["Sf1"] = trial.suggest_float("Sf1", self.param_set["Sf1"]["min"], self.param_set["Sf1"]["max"])
+                hidden_params["Sf2"] = trial.suggest_float("Sf2", self.param_set["Sf2"]["min"], self.param_set["Sf2"]["max"])
+                hidden_params["Sf3"] = trial.suggest_float("Sf3", self.param_set["Sf3"]["min"], self.param_set["Sf3"]["max"])
+                hidden_params["TDIR_basal_rate"] = trial.suggest_float("TDIR_basal_rate", self.param_set["Fc01"]["min"], self.param_set["Fc01"]["max"])
+                hidden_params["Ip"] = trial.suggest_float("Ip", self.param_set["Ip"]["min"], self.param_set["Ip"]["max"])
+                hidden_params["tmax_resc"] = trial.suggest_float("tmax_resc", self.param_set["tmax_resc"]["min"], self.param_set["tmax_resc"]["max"])
+                hidden_params["Thr_resc"] = trial.suggest_float("Thr_resc", self.param_set["Thr_resc"]["min"], self.param_set["Thr_resc"]["max"])
+                hidden_params["Carbs_resc"] = trial.suggest_float("Carbs_resc", self.param_set["Carbs_resc"]["min"], self.param_set["Carbs_resc"]["max"])
+                hidden_params["Win_resc"] = trial.suggest_float("Win_resc", self.param_set["Win_resc"]["min"], self.param_set["Win_resc"]["max"])
+                hidden_params["IIR_red_resc"] = trial.suggest_float("IIR_red_resc", self.param_set["IIR_red_resc"]["min"], self.param_set["IIR_red_resc"]["max"])
+                hidden_params["timer_resc"] = trial.suggest_float("timer_resc", self.param_set["timer_resc"]["min"], self.param_set["timer_resc"]["max"])
+                hidden_params["delay_rescue_val"] = trial.suggest_float("delay_rescue_val", self.param_set["delay_rescue_val"]["min"], self.param_set["delay_rescue_val"]["max"])
+
+                mae_list = []
+                for i in range(len(meal_scenario_list)):
+                    mae_list.append(
+                        self.evaluate(
+                            simulation_days_list[i],
+                            weight_list[i],
+                            starting_glucose_list[i],
+                            meal_scenario_list[i],
+                            bg_true_list[i],
+                            time_space)[0])
+                return np.mean(mae_list),
+
+            default_params = OrderedDict()
+            for key, value in self.param_set.items():
+                default_params[key] = value["default"]
+            study = optuna.create_study(direction="minimize")
+            study.enqueue_trial(dict(default_params))
+            study.optimize(objective, n_trials=n)
+
+            self.params = OrderedDict(study.best_params)
+
+            print("best params:", self.params)
+            print("best value:", study.best_value)
 
 
 def bg_plot(bg_output, ins_input):
@@ -634,7 +689,7 @@ if __name__ == "__main__":
     #for i in range(6):
     #    mae, rmse = model.evaluate(10, weight_list[i], start_bg_list[i], meal_list[i], bg_list[i], 15)
     # fit
-    model.fit(days_list, weight_list, start_bg_list, meal_list, bg_list, 15, "GA")
+    model.fit(days_list, weight_list, start_bg_list, meal_list, bg_list, 15, "GA", 20)
 
     print(model.params)
 
